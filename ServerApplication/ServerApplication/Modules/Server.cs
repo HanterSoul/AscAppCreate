@@ -11,45 +11,38 @@ namespace ServerApplication.Modules
 {
     public class Server : IServer
     {
-        Socket _serversocket;
-
-
-        public int? Port { get; set; }
-        public IPAddress Ip { get; set; }
+        TcpListener _serversocket;
+        
         public bool State { get; set; }
 
-        public Server()
-        {
-            _serversocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        public Server(IPAddress Ip, int Port)
+        {           
+            _serversocket = new TcpListener(Ip, Port);
         }
 
         public event ServerEvents OnStart;
         public event ServerEvents OnStop;
 
         public void Start()
-        {
-            if (Port == null || Ip == null) return;
-
-            _serversocket.Bind(new IPEndPoint(Ip, (int)Port));
-            _serversocket.Listen(10);
+        {        
             State = true;
+            _serversocket.Start();
+
             Task.Run(Write);
             OnStart?.Invoke();
         }
 
         public void Stop()
         {
-            State = false;
-            OnStop();
-            //  _serversocket.Shutdown(SocketShutdown.Both);
-            _serversocket.Dispose();
-            //_serversocket.Close();
+            State = false;           
+            OnStop?.Invoke();
         }
         
         public async Task Write()
         {
-            int bytes = 0; // количество полученных байтов
-            byte[] data = new byte[256]; // буфер для получаемых данных                       
+            Byte[] bytes = new Byte[256];
+            String data = null;
+            TcpClient Client = null;
 
             await Task.Run(() =>
             {
@@ -57,25 +50,26 @@ namespace ServerApplication.Modules
                 {
                     try
                     {
-                        Socket handler = _serversocket.Accept();
-                        StringBuilder builder = new StringBuilder();
+                        Client = _serversocket.AcceptTcpClient();
+                        data = null;
+                        NetworkStream stream = Client.GetStream();
 
-                        do
+                        int i;
+
+                        while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
                         {
-                            bytes = handler.Receive(data);
-                            builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
+                            data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
+                            Console.WriteLine("Received: {0}", data);
+                            data = data.ToUpper();
 
-                        } while (handler.Available > 0);
+                            byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
+                            
+                            stream.Write(msg, 0, msg.Length);
+                            Console.WriteLine("Sent: {0}", data);
 
-                        Console.WriteLine(DateTime.Now.ToShortTimeString() + ": " + builder.ToString());
+                        }
+                        Client.Close();
 
-                        // отправляем ответ
-                        string message = "ваше сообщение доставлено";
-                        data = Encoding.Unicode.GetBytes(message);
-                        handler.Send(data);
-                        // закрываем сокет
-                        handler.Shutdown(SocketShutdown.Both);
-                        handler.Close();
                     }
                     catch (Exception e)
                     {
@@ -83,6 +77,15 @@ namespace ServerApplication.Modules
                     }
 
                 }
+
+                if (!State)
+                {
+                    NetworkStream stream = Client.GetStream();
+                    byte[] msg = System.Text.Encoding.ASCII.GetBytes("Close");
+                    stream.Write(msg, 0, msg.Length);
+                    _serversocket.Stop();
+                }
+
             });
         }
     }

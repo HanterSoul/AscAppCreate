@@ -12,20 +12,22 @@ namespace TestServer
     {
         static void Main(string[] args)
         {
-            IServer server = new Server()
-            {
-                Ip = IPAddress.Parse("127.0.0.1"),
-                Port = 8005
-            };
-            server.OnStart += () => { Console.WriteLine("Started"); };
-            server.OnStop  += () => { Console.WriteLine('\n'+"Stop"); };
+            IServer server = new Server(IPAddress.Parse("127.0.0.1"), 8005);
+
+            server.OnStart += () => { Console.WriteLine('\n' + "Started"); };
+            server.OnStop  += () => { Console.WriteLine('\n' + "Stop"); };
             server.Start();
 
+            
+            Next:
             if (Console.ReadKey().KeyChar == 'n') server.Stop();
-            Console.ReadKey();
+            
 
             if (Console.ReadKey().KeyChar == 'y') server.Start();
-            Console.ReadKey();
+
+
+            goto Next; 
+
 
         }
 

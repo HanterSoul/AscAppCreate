@@ -12,8 +12,6 @@ namespace ServerApplication.Interfaces
 
     public interface IServer
     {
-        int? Port { get; set; } //порт
-        IPAddress Ip { get; set; } //Ip адрес
         bool State { get; set; }
         event ServerEvents OnStart;
         event ServerEvents OnStop;
